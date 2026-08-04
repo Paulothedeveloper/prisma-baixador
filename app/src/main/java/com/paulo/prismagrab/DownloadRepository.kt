@@ -13,6 +13,8 @@ data class DlItem(
     val status: DlStatus = DlStatus.FILA,
     val message: String = "",
     val audioOnly: Boolean = false,
+    val maxHeight: Int = 0,      // 0 = melhor
+    val upscale: Boolean = false,
 )
 
 /** Fonte única do estado da fila. Service escreve, UI observa. */

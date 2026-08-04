@@ -41,8 +41,13 @@ class DownloadService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val url = intent?.getStringExtra(EXTRA_URL)?.trim()
         val audioOnly = intent?.getBooleanExtra(EXTRA_AUDIO, false) ?: false
+        val maxHeight = intent?.getIntExtra(EXTRA_MAXH, 0) ?: 0
+        val upscale = intent?.getBooleanExtra(EXTRA_UPSCALE, false) ?: false
         if (!url.isNullOrEmpty()) {
-            val item = DlItem(id = "dl_${startId}_${url.hashCode()}", url = url, audioOnly = audioOnly)
+            val item = DlItem(
+                id = "dl_${startId}_${url.hashCode()}", url = url,
+                audioOnly = audioOnly, maxHeight = maxHeight, upscale = upscale,
+            )
             DownloadRepository.add(item)
             queue.trySend(item)
         }
@@ -81,7 +86,7 @@ class DownloadService : Service() {
             DownloadRepository.patch(id) { it.copy(title = info.title, status = DlStatus.BAIXANDO) }
             notify("Baixando", info.title, 0)
 
-            val saved = Downloader.download(this, item.url, id, item.audioOnly) { p, _ ->
+            val saved = Downloader.download(this, item.url, id, item.audioOnly, item.maxHeight, item.upscale) { p, _ ->
                 if (DownloadRepository.consumeCancel(id)) { Downloader.cancel(id); return@download }
                 DownloadRepository.patch(id) { it.copy(progress = p) }
                 notify("Baixando", info.title, p)
@@ -151,11 +156,15 @@ class DownloadService : Service() {
         private const val NOTIF_ID = 42
         const val EXTRA_URL = "url"
         const val EXTRA_AUDIO = "audio"
+        const val EXTRA_MAXH = "maxh"
+        const val EXTRA_UPSCALE = "upscale"
 
-        fun enqueue(ctx: Context, url: String, audioOnly: Boolean) {
+        fun enqueue(ctx: Context, url: String, audioOnly: Boolean, maxHeight: Int = 0, upscale: Boolean = false) {
             val i = Intent(ctx, DownloadService::class.java).apply {
                 putExtra(EXTRA_URL, url)
                 putExtra(EXTRA_AUDIO, audioOnly)
+                putExtra(EXTRA_MAXH, maxHeight)
+                putExtra(EXTRA_UPSCALE, upscale)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
         }

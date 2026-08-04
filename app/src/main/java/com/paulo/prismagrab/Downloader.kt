@@ -34,6 +34,8 @@ object Downloader {
         url: String,
         processId: String,
         audioOnly: Boolean,
+        maxHeight: Int,   // 0 = melhor disponível; >0 = teto de altura (720/1080/…)
+        upscale: Boolean, // vídeo: força a resolução escolhida via ffmpeg scale (re-encode lento)
         onProgress: (Int, String) -> Unit,
     ): String {
         // pasta temporária DO APP (sempre gravável, sem permissão)
@@ -46,10 +48,22 @@ object Downloader {
             if (audioOnly) {
                 req.addOption("-x")
                 req.addOption("--audio-format", "mp3")
+                // maxHeight aqui vira "qualidade de áudio": 0 = melhor, senão VBR menor
+                req.addOption("--audio-quality", if (maxHeight == 0) "0" else "5")
             } else {
-                // melhor vídeo+áudio já unidos em mp4 (o ffmpeg empacotado faz o merge)
-                req.addOption("-f", "bv*+ba/b")
+                // seleção de formato: melhor v+a já unidos em mp4 (ffmpeg embutido faz o merge)
+                val fmt = if (maxHeight > 0 && !upscale)
+                    "bv*[height<=$maxHeight]+ba/b[height<=$maxHeight]/bv*+ba/b"
+                else
+                    "bv*+ba/b"
+                req.addOption("-f", fmt)
                 req.addOption("--merge-output-format", "mp4")
+                // UPSCALE nativo (opção do usuário): re-encoda escalando pra altura escolhida com
+                // lanczos. Interpolação (não IA) e LENTA no celular — a UI avisa.
+                if (upscale && maxHeight > 0) {
+                    req.addOption("--recode-video", "mp4")
+                    req.addOption("--postprocessor-args", "VideoConvertor:-vf scale=-2:$maxHeight:flags=lanczos")
+                }
             }
 
             YoutubeDL.getInstance().execute(req, processId) { progress, _, _ ->
