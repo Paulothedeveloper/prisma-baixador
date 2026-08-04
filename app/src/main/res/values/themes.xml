@@ -4,7 +4,7 @@
          windowBackground escuro evita o flash branco na abertura. -->
     <style name="Theme.PrismaGrab" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/prism_bg</item>
-        <item name="android:statusBarColor">@color/prism_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@color/prism_bg</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
