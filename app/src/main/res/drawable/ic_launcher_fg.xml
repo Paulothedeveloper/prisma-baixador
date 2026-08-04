@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Prisma: triângulo de vidro + feixe branco entrando e espectro saindo. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#EDEDF2"
+        android:strokeWidth="2"
+        android:fillAlpha="0.10"
+        android:pathData="M54,30 L74,68 L34,68 Z" />
+    <!-- feixe branco de entrada -->
+    <path android:strokeColor="#EDEDF2" android:strokeWidth="3" android:pathData="M24,54 L46,54" />
+    <!-- espectro de saída -->
+    <path android:strokeColor="#7C5CFF" android:strokeWidth="3" android:pathData="M62,52 L86,44" />
+    <path android:strokeColor="#5C8CFF" android:strokeWidth="3" android:pathData="M63,55 L86,52" />
+    <path android:strokeColor="#00D3B8" android:strokeWidth="3" android:pathData="M63,58 L86,60" />
+    <path android:strokeColor="#FFB84D" android:strokeWidth="3" android:pathData="M62,61 L86,68" />
+</vector>

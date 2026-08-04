@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema base dark do sistema (sem lib extra). Compose desenha o resto.
+         windowBackground escuro evita o flash branco na abertura. -->
+    <style name="Theme.PrismaGrab" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/prism_bg</item>
+        <item name="android:statusBarColor">@color/prism_bg</item>
+        <item name="android:navigationBarColor">@color/prism_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
