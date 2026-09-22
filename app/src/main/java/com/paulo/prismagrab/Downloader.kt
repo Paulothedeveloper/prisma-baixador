@@ -19,52 +19,79 @@ object Downloader {
 
     data class Info(val title: String, val thumbnail: String?, val durationSec: Int)
 
-    /** Como baixar: alvo resolvido + cookies (se houver). Duas alternativas p/ IG/TikTok/FB. */
-    data class Plan(val target: String, val cookies: String?)
-
-    /**
-     * Decide o caminho ANTES de baixar:
-     *  1) sem-login: se há instância cobalt configurada, resolve a URL pública nela (zero risco de conta);
-     *  2) login: senão usa os cookies da sessão (se o usuário logou em Contas);
-     *  3) senão tenta anônimo (IG/TikTok/FB vão falhar → banner de bloqueio).
-     */
-    fun plan(ctx: Context, url: String): Plan {
-        if (Cookies.forUrl(url) != null) {
-            Cobalt.resolve(ctx, url)?.let { return Plan(it, null) } // sem-login primeiro
-        }
-        return Plan(url, Cookies.fileForUrl(ctx, url))
-    }
-
-    fun getInfo(plan: Plan): Info {
-        val req = YoutubeDLRequest(plan.target)
-        plan.cookies?.let { req.addOption("--cookies", it) }
+    fun getInfo(ctx: Context, url: String): Info {
+        val req = YoutubeDLRequest(url)
+        Cookies.fileForUrl(ctx, url)?.let { req.addOption("--cookies", it) }
         val i = YoutubeDL.getInstance().getInfo(req)
         val t = i.title?.takeIf { it.isNotBlank() } ?: "video"
         return Info(t, i.thumbnail, i.duration)
     }
 
+    /** Erro de BLOQUEIO por autenticação (rede exige login/cookies)? Só isso dispara o fallback. */
+    private fun isBlock(e: Throwable): Boolean {
+        val r = (e.message ?: "").lowercase()
+        return listOf("login", "private", "cookies", "sign in", "rate-limit", "429", "restricted",
+            "account", "not available").any { r.contains(it) }
+    }
+
     /**
-     * Baixa e salva na galeria. `onProgress(0..100)` reporta o andamento.
-     * Retorna o nome do arquivo salvo. Lança em erro (a UI traduz pra PT).
+     * Baixa em CASCATA (do menos intrusivo pro mais), tudo automático:
+     *  1) ANÔNIMO (nosso motor yt-dlp) — já resolve a maioria dos vídeos públicos, sem login nem servidor;
+     *  2) SEM-LOGIN via cobalt (instância padrão embutida) — se o anônimo for bloqueado;
+     *  3) LOGIN/cookies — se o usuário conectou a conta em Contas.
+     * Se tudo falhar por bloqueio, lança o erro → a UI mostra o banner "entre na sua conta".
+     * Retorna o nome do arquivo salvo. `onProgress(0..100)` reporta o andamento.
      */
     fun download(
         ctx: Context,
-        plan: Plan,
+        url: String,
         processId: String,
         audioOnly: Boolean,
         maxHeight: Int,   // 0 = melhor disponível; >0 = teto de altura (720/1080/…)
         upscale: Boolean, // vídeo: força a resolução escolhida via ffmpeg scale (re-encode lento)
         onProgress: (Int, String) -> Unit,
     ): String {
+        var lastBlock: Exception? = null
+        // 1) anônimo (nosso motor)
+        try {
+            return doDownload(ctx, url, null, processId, audioOnly, maxHeight, upscale, onProgress)
+        } catch (e: Exception) {
+            if (!isBlock(e)) throw e
+            lastBlock = e
+        }
+        // fallback só pras redes que bloqueiam por login (IG/TikTok/FB)
+        if (Cookies.forUrl(url) == null) throw lastBlock
+        // 2) sem-login via cobalt (padrão embutido) — o usuário não configura nada
+        Cobalt.resolveAny(ctx, url)?.let { direct ->
+            try { return doDownload(ctx, direct, null, processId, audioOnly, maxHeight, upscale, onProgress) }
+            catch (e: Exception) { if (!isBlock(e)) throw e; lastBlock = e }
+        }
+        // 3) login/cookies (se o usuário conectou a conta)
+        Cookies.fileForUrl(ctx, url)?.let { cookies ->
+            try { return doDownload(ctx, url, cookies, processId, audioOnly, maxHeight, upscale, onProgress) }
+            catch (e: Exception) { if (!isBlock(e)) throw e; lastBlock = e }
+        }
+        throw lastBlock!!
+    }
+
+    private fun doDownload(
+        ctx: Context,
+        target: String,
+        cookies: String?,
+        processId: String,
+        audioOnly: Boolean,
+        maxHeight: Int,
+        upscale: Boolean,
+        onProgress: (Int, String) -> Unit,
+    ): String {
         // pasta temporária DO APP (sempre gravável, sem permissão)
         val tmp = File(ctx.cacheDir, "dl_$processId").apply { deleteRecursively(); mkdirs() }
         try {
-            val req = YoutubeDLRequest(plan.target)
+            val req = YoutubeDLRequest(target)
             req.addOption("-o", "${tmp.absolutePath}/%(title).150s.%(ext)s")
             req.addOption("--no-playlist")
             req.addOption("--no-mtime")
-            // cookies da sessão (login) quando o alvo é o link original de IG/TikTok/FB
-            plan.cookies?.let { req.addOption("--cookies", it) }
+            cookies?.let { req.addOption("--cookies", it) }
             if (audioOnly) {
                 req.addOption("-x")
                 req.addOption("--audio-format", "mp3")

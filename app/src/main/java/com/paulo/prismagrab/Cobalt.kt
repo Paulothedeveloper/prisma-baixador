@@ -16,9 +16,21 @@ import java.net.URL
  * API cobalt v10: POST {url} (Accept+Content-Type json) -> {status, url|picker[]}.
  */
 object Cobalt {
-    /** Resolve a url pública numa URL direta de mídia via a instância cobalt. null se off/falhou. */
-    fun resolve(ctx: Context, mediaUrl: String): String? {
-        val base = Prefs.cobaltUrl(ctx)?.trimEnd('/') ?: return null
+    // Instâncias públicas que resolvem SEM chave (fallback automático, o usuário não configura nada).
+    // Volúveis por natureza (podem cair/pedir chave) — por isso é LISTA + só é usada quando o
+    // anônimo falha, e se todas falharem o app cai no login. Provado no-key em set/2026: otomir23.
+    private val DEFAULTS = listOf("https://co.otomir23.me")
+
+    /** Tenta a instância do usuário (se colada) e depois as padrão, até uma resolver. */
+    fun resolveAny(ctx: Context, mediaUrl: String): String? {
+        val bases = Prefs.cobaltUrl(ctx)?.let { listOf(it) } ?: DEFAULTS
+        for (b in bases) resolve(b, mediaUrl)?.let { return it }
+        return null
+    }
+
+    /** Resolve a url pública numa URL direta de mídia via UMA instância cobalt. null se falhou. */
+    fun resolve(base0: String, mediaUrl: String): String? {
+        val base = base0.trimEnd('/')
         return try {
             val conn = (URL("$base/").openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"

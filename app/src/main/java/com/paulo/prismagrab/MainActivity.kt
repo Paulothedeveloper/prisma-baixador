@@ -101,6 +101,7 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
     val engineUpdating by App.engineUpdating.collectAsState()
     val engineWarning by App.engineWarning.collectAsState()
     val blockNotice by App.blockNotice.collectAsState()
+    val updateAvailable by App.updateAvailable.collectAsState()
 
     var url by remember { mutableStateOf("") }
     var audioOnly by remember { mutableStateOf(false) }
@@ -154,6 +155,18 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
                 color = PrismMuted,
                 style = MaterialTheme.typography.bodyMedium,
             )
+
+            // Banner de atualização do app (sideload não auto-atualiza): checa o GitHub no boot.
+            val uriHandler = LocalUriHandler.current
+            updateAvailable?.let { up ->
+                Spacer(Modifier.height(14.dp))
+                UpdateAppBanner(
+                    version = up.version,
+                    onGet = { uriHandler.openUri(up.pageUrl) },
+                    onDismiss = { App.updateAvailable.value = null },
+                )
+            }
+
             Spacer(Modifier.height(22.dp))
 
             // ---- Campo de link ----
@@ -342,7 +355,7 @@ private fun AccountsDialog(
         text = {
             Column {
                 Text(
-                    "Instagram, TikTok e Facebook exigem login até pra vídeo público. Entre uma vez e o download passa a funcionar.",
+                    "O app baixa de Instagram, TikTok e Facebook sozinho, sem login. Se uma rede bloquear um vídeo, conecte aqui (de preferência uma conta secundária) e baixe de novo.",
                     color = PrismMuted, style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(14.dp))
@@ -367,9 +380,9 @@ private fun AccountsDialog(
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider(color = PrismBorder)
                 Spacer(Modifier.height(12.dp))
-                Text("Modo sem-login (avançado)", color = PrismText, style = MaterialTheme.typography.labelLarge)
+                Text("Servidor sem-login (opcional)", color = PrismText, style = MaterialTheme.typography.labelLarge)
                 Text(
-                    "Cole a URL de um servidor cobalt pra baixar dessas redes SEM logar (sem risco de conta). Vazio = usa login.",
+                    "O app já usa um servidor grátis por padrão pra baixar sem login. Só preencha se quiser usar o seu.",
                     color = PrismMuted, style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(8.dp))
@@ -392,6 +405,26 @@ private fun AccountsDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar", color = PrismAccent) } },
     )
+}
+
+// Banner de atualização do app (nova versão no GitHub).
+@Composable
+private fun UpdateAppBanner(version: String, onGet: () -> Unit, onDismiss: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(PrismAccent.copy(alpha = 0.14f))
+            .border(1.dp, PrismAccent.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Nova versão $version disponível", color = PrismText, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+            Text("Toque em Baixar pra atualizar.", color = PrismMuted, style = MaterialTheme.typography.bodySmall)
+        }
+        TextButton(onClick = onGet) { Text("Baixar", color = PrismAccent, fontWeight = FontWeight.Bold) }
+        TextButton(onClick = onDismiss) { Text("Depois", color = PrismMuted) }
+    }
 }
 
 // Banner de aviso quando IG/TikTok/FB bloqueia o download sem login.

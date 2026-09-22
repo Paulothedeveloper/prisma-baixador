@@ -54,6 +54,10 @@ class App : Application() {
                 engineError.value = e.message ?: "Falha ao preparar o motor de download."
             }
         }
+        // Checa se saiu versão nova do app no GitHub (sideload não auto-atualiza) → banner na UI.
+        CoroutineScope(Dispatchers.IO).launch {
+            UpdateChecker.check(BuildConfig.VERSION_NAME)?.let { updateAvailable.value = it }
+        }
     }
 
     /** Atualiza o yt-dlp (canal estável = releases/latest do yt-dlp, sempre atual). true se ok. */
@@ -79,5 +83,7 @@ class App : Application() {
         val engineWarning = MutableStateFlow<String?>(null)
         // banner de bloqueio (IG/TikTok/FB negou sem login) — a UI mostra + botão Contas
         val blockNotice = MutableStateFlow<String?>(null)
+        // nova versão do app disponível no GitHub (sideload não auto-atualiza)
+        val updateAvailable = MutableStateFlow<UpdateChecker.Update?>(null)
     }
 }

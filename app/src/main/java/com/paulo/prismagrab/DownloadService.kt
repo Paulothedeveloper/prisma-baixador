@@ -82,14 +82,12 @@ class DownloadService : Service() {
             }
 
             DownloadRepository.patch(id) { it.copy(status = DlStatus.BUSCANDO, message = "Lendo o link…") }
-            // resolve o caminho uma vez (sem-login/cobalt → cookies → anônimo)
-            val plan = Downloader.plan(this, item.url)
-            // título é só cosmético: se falhar (ex.: IG anônimo), segue e deixa o download dar o erro real
-            val info = try { Downloader.getInfo(plan) } catch (_: Exception) { Downloader.Info("video", null, 0) }
+            // título é só cosmético: se falhar (ex.: IG anônimo), segue — o download tem a cascata real
+            val info = try { Downloader.getInfo(this, item.url) } catch (_: Exception) { Downloader.Info("video", null, 0) }
             DownloadRepository.patch(id) { it.copy(title = info.title, status = DlStatus.BAIXANDO) }
             notify("Baixando", info.title, 0)
 
-            val saved = Downloader.download(this, plan, id, item.audioOnly, item.maxHeight, item.upscale) { p, _ ->
+            val saved = Downloader.download(this, item.url, id, item.audioOnly, item.maxHeight, item.upscale) { p, _ ->
                 if (DownloadRepository.consumeCancel(id)) { Downloader.cancel(id); return@download }
                 DownloadRepository.patch(id) { it.copy(progress = p) }
                 notify("Baixando", info.title, p)
@@ -120,7 +118,7 @@ class DownloadService : Service() {
         val site = Cookies.forUrl(url) ?: return
         if (blocked && !Cookies.isLoggedIn(this, site)) {
             App.blockNotice.value =
-                "O ${site.label} bloqueou o download sem login. Toque em Contas e conecte (use uma conta secundária) — ou configure o modo sem-login em Contas."
+                "O ${site.label} pediu login pra esse vídeo. Toque em Contas e entre na sua conta (de preferência uma conta secundária) — aí é só baixar de novo."
         }
     }
 

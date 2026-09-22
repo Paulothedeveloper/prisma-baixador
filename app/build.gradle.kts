@@ -12,8 +12,8 @@ android {
         applicationId = "com.paulo.prismagrab"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.4.0"
     }
 
     // youtubedl-android carrega .so nativos (Python/ffmpeg) grandes → split por ABI reduz o APK.
@@ -52,7 +52,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     packaging {
         // libpython/ffmpeg não devem ser comprimidos/legacy → evita corromper o unpack.
         jniLibs { useLegacyPackaging = true }
