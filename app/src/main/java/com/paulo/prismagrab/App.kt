@@ -77,5 +77,7 @@ class App : Application() {
         val engineUpdating = MutableStateFlow(false)
         // aviso não-fatal (ex.: update falhou mas há motor embutido)
         val engineWarning = MutableStateFlow<String?>(null)
+        // banner de bloqueio (IG/TikTok/FB negou sem login) — a UI mostra + botão Contas
+        val blockNotice = MutableStateFlow<String?>(null)
     }
 }

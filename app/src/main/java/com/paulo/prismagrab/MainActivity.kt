@@ -100,6 +100,7 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
     val engineError by App.engineError.collectAsState()
     val engineUpdating by App.engineUpdating.collectAsState()
     val engineWarning by App.engineWarning.collectAsState()
+    val blockNotice by App.blockNotice.collectAsState()
 
     var url by remember { mutableStateOf("") }
     var audioOnly by remember { mutableStateOf(false) }
@@ -196,6 +197,16 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
             ) { UpscaleRow(upscale) { upscale = it } }
             Spacer(Modifier.height(10.dp))
             SupportedHint()
+
+            // Banner de bloqueio: aparece quando IG/TikTok/FB nega o download sem login.
+            blockNotice?.let { msg ->
+                Spacer(Modifier.height(12.dp))
+                BlockBanner(
+                    msg,
+                    onOpenAccounts = { App.blockNotice.value = null; showAccounts = true },
+                    onDismiss = { App.blockNotice.value = null },
+                )
+            }
 
             // Estado do motor: erro fatal > preparando/atualizando (1ª vez) > aviso não-fatal.
             val statusText = when {
@@ -353,10 +364,54 @@ private fun AccountsDialog(
                         }
                     }
                 }
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = PrismBorder)
+                Spacer(Modifier.height(12.dp))
+                Text("Modo sem-login (avançado)", color = PrismText, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "Cole a URL de um servidor cobalt pra baixar dessas redes SEM logar (sem risco de conta). Vazio = usa login.",
+                    color = PrismMuted, style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(8.dp))
+                var cobalt by remember { mutableStateOf(Prefs.cobaltUrl(ctx) ?: "") }
+                OutlinedTextField(
+                    value = cobalt,
+                    onValueChange = { cobalt = it; Prefs.setCobaltUrl(ctx, it) },
+                    placeholder = { Text("https://sua-instancia-cobalt", color = PrismMuted) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrismAccent, unfocusedBorderColor = PrismBorder,
+                        focusedContainerColor = PrismSurface2, unfocusedContainerColor = PrismSurface2,
+                        cursorColor = PrismAccent, focusedTextColor = PrismText, unfocusedTextColor = PrismText,
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                )
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar", color = PrismAccent) } },
     )
+}
+
+// Banner de aviso quando IG/TikTok/FB bloqueia o download sem login.
+@Composable
+private fun BlockBanner(message: String, onOpenAccounts: () -> Unit, onDismiss: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0x22FFB020))
+            .border(1.dp, Color(0x55FFB020), RoundedCornerShape(12.dp))
+            .padding(14.dp),
+    ) {
+        Text(message, color = PrismText, style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onOpenAccounts) { Text("Contas", color = PrismAccent) }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onDismiss) { Text("Dispensar", color = PrismMuted) }
+        }
+    }
 }
 
 private fun start(ctx: Context, url: String, audioOnly: Boolean, maxHeight: Int = 0, upscale: Boolean = false) =

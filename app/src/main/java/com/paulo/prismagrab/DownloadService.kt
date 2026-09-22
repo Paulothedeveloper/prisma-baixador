@@ -82,11 +82,14 @@ class DownloadService : Service() {
             }
 
             DownloadRepository.patch(id) { it.copy(status = DlStatus.BUSCANDO, message = "Lendo o link…") }
-            val info = Downloader.getInfo(this, item.url)
+            // resolve o caminho uma vez (sem-login/cobalt → cookies → anônimo)
+            val plan = Downloader.plan(this, item.url)
+            // título é só cosmético: se falhar (ex.: IG anônimo), segue e deixa o download dar o erro real
+            val info = try { Downloader.getInfo(plan) } catch (_: Exception) { Downloader.Info("video", null, 0) }
             DownloadRepository.patch(id) { it.copy(title = info.title, status = DlStatus.BAIXANDO) }
             notify("Baixando", info.title, 0)
 
-            val saved = Downloader.download(this, item.url, id, item.audioOnly, item.maxHeight, item.upscale) { p, _ ->
+            val saved = Downloader.download(this, plan, id, item.audioOnly, item.maxHeight, item.upscale) { p, _ ->
                 if (DownloadRepository.consumeCancel(id)) { Downloader.cancel(id); return@download }
                 DownloadRepository.patch(id) { it.copy(progress = p) }
                 notify("Baixando", info.title, p)
@@ -104,7 +107,20 @@ class DownloadService : Service() {
                 DownloadRepository.patch(id) { it.copy(status = DlStatus.CANCELADO, message = "Cancelado.") }
             } else {
                 DownloadRepository.patch(id) { it.copy(status = DlStatus.ERRO, message = friendly(e)) }
+                maybeBlockNotice(item.url, e)
             }
+        }
+    }
+
+    /** Se IG/TikTok/FB bloqueou e o usuário não está logado nessa rede, mostra o banner de aviso. */
+    private fun maybeBlockNotice(url: String, e: Exception) {
+        val raw = (e.message ?: "").lowercase()
+        val blocked = listOf("login", "private", "cookies", "sign in", "rate-limit", "429", "restricted")
+            .any { raw.contains(it) }
+        val site = Cookies.forUrl(url) ?: return
+        if (blocked && !Cookies.isLoggedIn(this, site)) {
+            App.blockNotice.value =
+                "O ${site.label} bloqueou o download sem login. Toque em Contas e conecte (use uma conta secundária) — ou configure o modo sem-login em Contas."
         }
     }
 

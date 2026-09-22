@@ -19,9 +19,25 @@ object Downloader {
 
     data class Info(val title: String, val thumbnail: String?, val durationSec: Int)
 
-    fun getInfo(ctx: Context, url: String): Info {
-        val req = YoutubeDLRequest(url)
-        Cookies.fileForUrl(ctx, url)?.let { req.addOption("--cookies", it) }
+    /** Como baixar: alvo resolvido + cookies (se houver). Duas alternativas p/ IG/TikTok/FB. */
+    data class Plan(val target: String, val cookies: String?)
+
+    /**
+     * Decide o caminho ANTES de baixar:
+     *  1) sem-login: se há instância cobalt configurada, resolve a URL pública nela (zero risco de conta);
+     *  2) login: senão usa os cookies da sessão (se o usuário logou em Contas);
+     *  3) senão tenta anônimo (IG/TikTok/FB vão falhar → banner de bloqueio).
+     */
+    fun plan(ctx: Context, url: String): Plan {
+        if (Cookies.forUrl(url) != null) {
+            Cobalt.resolve(ctx, url)?.let { return Plan(it, null) } // sem-login primeiro
+        }
+        return Plan(url, Cookies.fileForUrl(ctx, url))
+    }
+
+    fun getInfo(plan: Plan): Info {
+        val req = YoutubeDLRequest(plan.target)
+        plan.cookies?.let { req.addOption("--cookies", it) }
         val i = YoutubeDL.getInstance().getInfo(req)
         val t = i.title?.takeIf { it.isNotBlank() } ?: "video"
         return Info(t, i.thumbnail, i.duration)
@@ -33,7 +49,7 @@ object Downloader {
      */
     fun download(
         ctx: Context,
-        url: String,
+        plan: Plan,
         processId: String,
         audioOnly: Boolean,
         maxHeight: Int,   // 0 = melhor disponível; >0 = teto de altura (720/1080/…)
@@ -43,13 +59,12 @@ object Downloader {
         // pasta temporária DO APP (sempre gravável, sem permissão)
         val tmp = File(ctx.cacheDir, "dl_$processId").apply { deleteRecursively(); mkdirs() }
         try {
-            val req = YoutubeDLRequest(url)
+            val req = YoutubeDLRequest(plan.target)
             req.addOption("-o", "${tmp.absolutePath}/%(title).150s.%(ext)s")
             req.addOption("--no-playlist")
             req.addOption("--no-mtime")
-            // Instagram/TikTok/Facebook bloqueiam download anônimo (mesmo público). Se o usuário
-            // logou (LoginActivity), usa os cookies da sessão — igual o desktop faz com o navegador.
-            Cookies.fileForUrl(ctx, url)?.let { req.addOption("--cookies", it) }
+            // cookies da sessão (login) quando o alvo é o link original de IG/TikTok/FB
+            plan.cookies?.let { req.addOption("--cookies", it) }
             if (audioOnly) {
                 req.addOption("-x")
                 req.addOption("--audio-format", "mp3")
