@@ -19,8 +19,10 @@ object Downloader {
 
     data class Info(val title: String, val thumbnail: String?, val durationSec: Int)
 
-    fun getInfo(url: String): Info {
-        val i = YoutubeDL.getInstance().getInfo(url)
+    fun getInfo(ctx: Context, url: String): Info {
+        val req = YoutubeDLRequest(url)
+        Cookies.fileForUrl(ctx, url)?.let { req.addOption("--cookies", it) }
+        val i = YoutubeDL.getInstance().getInfo(req)
         val t = i.title?.takeIf { it.isNotBlank() } ?: "video"
         return Info(t, i.thumbnail, i.duration)
     }
@@ -45,6 +47,9 @@ object Downloader {
             req.addOption("-o", "${tmp.absolutePath}/%(title).150s.%(ext)s")
             req.addOption("--no-playlist")
             req.addOption("--no-mtime")
+            // Instagram/TikTok/Facebook bloqueiam download anônimo (mesmo público). Se o usuário
+            // logou (LoginActivity), usa os cookies da sessão — igual o desktop faz com o navegador.
+            Cookies.fileForUrl(ctx, url)?.let { req.addOption("--cookies", it) }
             if (audioOnly) {
                 req.addOption("-x")
                 req.addOption("--audio-format", "mp3")

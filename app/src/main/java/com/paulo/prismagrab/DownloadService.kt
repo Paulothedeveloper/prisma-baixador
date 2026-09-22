@@ -82,7 +82,7 @@ class DownloadService : Service() {
             }
 
             DownloadRepository.patch(id) { it.copy(status = DlStatus.BUSCANDO, message = "Lendo o link…") }
-            val info = Downloader.getInfo(item.url)
+            val info = Downloader.getInfo(this, item.url)
             DownloadRepository.patch(id) { it.copy(title = info.title, status = DlStatus.BAIXANDO) }
             notify("Baixando", info.title, 0)
 
@@ -114,7 +114,7 @@ class DownloadService : Service() {
         return when {
             raw.contains("unsupported url") || raw.contains("no video") -> "Esse link não tem vídeo pra baixar."
             raw.contains("private") || raw.contains("login") || raw.contains("cookies") ||
-                raw.contains("sign in") -> "Vídeo privado ou restrito — precisa de login (em breve no PRISMA)."
+                raw.contains("sign in") -> "Precisa de login. Toque em Contas (canto superior) e entre no Instagram/TikTok/Facebook, depois baixe de novo."
             raw.contains("unavailable") || raw.contains("removed") -> "Vídeo indisponível ou removido."
             raw.contains("http error 404") -> "Link não encontrado (404)."
             raw.contains("timed out") || raw.contains("timeout") ||

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
@@ -103,6 +105,14 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
     var audioOnly by remember { mutableStateOf(false) }
     var qIndex by remember { mutableStateOf(0) }
     var upscale by remember { mutableStateOf(false) }
+    var showAccounts by remember { mutableStateOf(false) }
+    var accountsBump by remember { mutableIntStateOf(0) }
+    val loginLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        accountsBump++ // volta do login → re-lê o status de conectado
+    }
+    if (showAccounts) AccountsDialog(ctx, accountsBump, onDismiss = { showAccounts = false }) { site ->
+        loginLauncher.launch(Intent(ctx, LoginActivity::class.java).putExtra("site", site.key))
+    }
 
     LaunchedEffect(Unit) {
         snapshotFlow { sharedUrl.value }.collectLatest { u ->
@@ -117,7 +127,7 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
         ) {
             // ---- Cabeçalho com a marca G6 ----
             Spacer(Modifier.height(20.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Image(
                     painter = painterResource(R.drawable.prisma_mark),
                     contentDescription = null,
@@ -131,6 +141,11 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
                     letterSpacing = 1.5.sp,
                     color = PrismText,
                 )
+                Spacer(Modifier.weight(1f))
+                // Contas: login em Instagram/TikTok/Facebook (necessário — essas redes bloqueiam anônimo)
+                IconButton(onClick = { showAccounts = true }) {
+                    Icon(Icons.Filled.AccountCircle, contentDescription = "Contas", tint = PrismMuted)
+                }
             }
             Spacer(Modifier.height(6.dp))
             Text(
@@ -299,6 +314,50 @@ private fun DlCard(item: DlItem, modifier: Modifier = Modifier) {
 @Composable
 private fun StatusLine(text: String, color: Color) =
     Text(text, color = color, style = MaterialTheme.typography.bodySmall)
+
+// ---- Contas: login (cookies) nas redes que bloqueiam download anônimo ----
+@Composable
+private fun AccountsDialog(
+    ctx: Context,
+    bump: Int,
+    onDismiss: () -> Unit,
+    onLogin: (Cookies.Site) -> Unit,
+) {
+    var localBump by remember { mutableIntStateOf(0) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = PrismSurface,
+        title = { Text("Contas", color = PrismText, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "Instagram, TikTok e Facebook exigem login até pra vídeo público. Entre uma vez e o download passa a funcionar.",
+                    color = PrismMuted, style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(14.dp))
+                Cookies.SITES.forEach { site ->
+                    val logged = remember(bump, localBump) { Cookies.isLoggedIn(ctx, site) }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                    ) {
+                        Text(site.label, color = PrismText, modifier = Modifier.weight(1f))
+                        if (logged) {
+                            Text("Conectado", color = PrismAccent, style = MaterialTheme.typography.labelMedium)
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = { Cookies.logout(ctx, site); localBump++ }) {
+                                Text("Sair", color = PrismMuted)
+                            }
+                        } else {
+                            TextButton(onClick = { onLogin(site) }) { Text("Entrar", color = PrismAccent) }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar", color = PrismAccent) } },
+    )
+}
 
 private fun start(ctx: Context, url: String, audioOnly: Boolean, maxHeight: Int = 0, upscale: Boolean = false) =
     DownloadService.enqueue(ctx, firstUrl(url), audioOnly, maxHeight, upscale)

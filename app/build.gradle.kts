@@ -12,8 +12,8 @@ android {
         applicationId = "com.paulo.prismagrab"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.1.1"
+        versionCode = 4
+        versionName = "1.2.0"
     }
 
     // youtubedl-android carrega .so nativos (Python/ffmpeg) grandes → split por ABI reduz o APK.
@@ -27,8 +27,22 @@ android {
         }
     }
 
+    signingConfigs {
+        // A v1.1.0 foi assinada com a chave DEBUG do Android (CN=Android Debug). Distribuição é
+        // sideload/GitHub (não Play), então a chave debug serve E mantém o UPDATE sem reinstalar
+        // (mudar de chave obrigaria o usuário a desinstalar). Credenciais debug são PÚBLICAS e
+        // padrão — não é segredo. Referência via user.home → sem caminho pessoal no repo público.
+        create("release") {
+            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false // yt-dlp/Python via reflexão — não ofuscar por ora
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

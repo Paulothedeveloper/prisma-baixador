@@ -4,8 +4,15 @@ Leia junto de `PRODUCT.md`. Irmão mobile do PRISMA desktop (`PC - PRISMA`).
 
 ## O que é
 APK Android que baixa vídeo de redes sociais (motor `youtubedl-android` = yt-dlp+ffmpeg no aparelho).
-Público primeiro; login/cookies para privado = fase 2. Distribuição: **APK no GitHub Release**
-(Play Store barra downloader de social). Pacote `com.paulo.prismagrab`.
+Distribuição: **APK no GitHub Release** (Play Store barra downloader de social). Pacote `com.paulo.prismagrab`.
+
+## Login/cookies (v1.2.0) — Instagram/TikTok/Facebook
+Essas redes bloqueiam download ANÔNIMO até de vídeo público (o desktop resolve lendo o cookie do
+navegador logado; no celular não há navegador pra emprestar). Solução = login in-app:
+`LoginActivity` (WebView) → o usuário loga 1x → `Cookies.saveFromWebView` exporta os cookies num
+`cookies_<site>.txt` (Netscape) em `filesDir` → `Downloader`/`getInfo` passam `--cookies` pro yt-dlp.
+UI: botão **Contas** (header) → `AccountsDialog` (Entrar/Sair por rede). O erro de login guia pra lá.
+Os `cookies_*.txt` são a SESSÃO do usuário (sensível) e vivem só em `filesDir` (privado, fora de git).
 
 ## Stack & build
 Kotlin 2.0.21 · Compose Material3 · minSdk 26 / target 35 · AGP 8.7.3 · Gradle 8.14 · JDK 17 (JBR).
