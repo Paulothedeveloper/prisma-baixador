@@ -18,7 +18,8 @@ Kotlin 2.0.21 · Compose Material3 · minSdk 26 / target 35 · AGP 8.7.3 · Grad
 - **NÃO publicar/release sem OK explícito do Paulo.** Acumular e buildar 1x.
 
 ## Aprendizados / cuidados
-- youtubedl-android via JitPack (`com.github.yausername.youtubedl-android:*:0.18.1`).
+- youtubedl-android = fork JunkFood02 no Maven Central (`io.github.junkfood02.youtubedl-android:{library,ffmpeg}:0.18.1`) — Python 3.11 + yt-dlp atual (o upstream yausername/JitPack trava em Python 3.8).
+- **"Parou de funcionar" = yt-dlp embutido velho.** O motor SE ATUALIZA em runtime (`updateYoutubeDL`, canal STABLE = `yt-dlp/releases/latest`). Regra (App.kt): 1ª vez ou update > 3 dias → ESPERA o update antes de liberar downloads; falha com motor já instalado → segue com aviso; estado visível (`engineUpdating`/`engineWarning`). O botão de baixar só habilita com `engineReady`. NUNCA voltar a engolir o erro do update nem liberar download antes do motor pronto.
 - `jniLibs.useLegacyPackaging = true` — .so do Python/ffmpeg não podem ser comprimidos.
 - Motor desempacota na 1ª execução (App.kt em background) → UI espera `engineReady`.
 - Scoped storage (Android 10+): baixa em `cacheDir` e copia pro MediaStore Download/PRISMA.

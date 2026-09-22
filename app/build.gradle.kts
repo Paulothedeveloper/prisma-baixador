@@ -12,8 +12,8 @@ android {
         applicationId = "com.paulo.prismagrab"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.1.1"
     }
 
     // youtubedl-android carrega .so nativos (Python/ffmpeg) grandes → split por ABI reduz o APK.

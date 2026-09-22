@@ -96,6 +96,8 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
     val items by DownloadRepository.items.collectAsState()
     val engineReady by App.engineReady.collectAsState()
     val engineError by App.engineError.collectAsState()
+    val engineUpdating by App.engineUpdating.collectAsState()
+    val engineWarning by App.engineWarning.collectAsState()
 
     var url by remember { mutableStateOf("") }
     var audioOnly by remember { mutableStateOf(false) }
@@ -166,7 +168,7 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
                 val opts = if (audioOnly) AUDIO_Q else VIDEO_Q
                 QualityPicker(opts, qIndex) { qIndex = it }
                 Spacer(Modifier.weight(1f))
-                DownloadButton(enabled = url.isNotBlank() && engineError == null) {
+                DownloadButton(enabled = url.isNotBlank() && engineReady && engineError == null) {
                     val q = (if (audioOnly) AUDIO_Q else VIDEO_Q)[qIndex.coerceIn(0, (if (audioOnly) AUDIO_Q else VIDEO_Q).lastIndex)]
                     val up = upscale && !audioOnly && q.height > 0
                     start(ctx, url.trim(), audioOnly, q.height, up); url = ""
@@ -180,13 +182,22 @@ fun HomeScreen(sharedUrl: MutableState<String?>) {
             Spacer(Modifier.height(10.dp))
             SupportedHint()
 
-            if (!engineReady) {
+            // Estado do motor: erro fatal > preparando/atualizando (1ª vez) > aviso não-fatal.
+            val statusText = when {
+                engineError != null -> engineError
+                !engineReady && engineUpdating -> "Atualizando o motor de download…"
+                !engineReady -> "Preparando o motor na 1ª vez…"
+                engineUpdating -> "Atualizando o motor em segundo plano…"
+                engineWarning != null -> engineWarning
+                else -> null
+            }
+            if (statusText != null) {
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (engineError == null) PrismRing(size = 14.dp, stroke = 2.dp)
+                    if (engineError == null && (!engineReady || engineUpdating)) PrismRing(size = 14.dp, stroke = 2.dp)
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        engineError ?: "Preparando o motor na 1ª vez…",
+                        statusText,
                         color = if (engineError != null) PrismError else PrismMuted,
                         style = MaterialTheme.typography.bodySmall,
                     )
